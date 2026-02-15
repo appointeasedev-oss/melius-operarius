@@ -10,6 +10,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
+const Configstore = require('configstore');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -191,7 +192,6 @@ async function installLlama3Model() {
 
 async function runSetupWizard() {
   // Create a minimal setup by creating the config
-  const Configstore = require('configstore');
   const config = new Configstore('melius-operarius');
   
   config.set('setupComplete', true);

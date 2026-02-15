@@ -8,6 +8,7 @@ const { execSync, spawn } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const Configstore = require('configstore');
 
 class SetupAssistant {
   constructor() {
@@ -297,7 +298,6 @@ class SetupAssistant {
     console.log('💾 Saving configuration...\n');
     
     // Save configuration to configstore
-    const Configstore = require('configstore');
     const config = new Configstore('melius-operarius');
     
     config.set('setupComplete', true);

@@ -5,7 +5,20 @@
  * Runs after npm install to provide helpful next steps
  */
 
-const chalk = require('chalk'); // Would need to be added to dependencies in real implementation
+// Try to load chalk, but don't fail if it's not available
+let chalk;
+try {
+  chalk = require('chalk');
+} catch (error) {
+  // If chalk isn't available, create a simple fallback
+  chalk = {
+    blue: (str) => str,
+    yellow: (str) => str,
+    green: (str) => str,
+    cyan: (str) => str
+  };
+}
+
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -53,21 +66,5 @@ async function runPostInstall() {
   console.log('');
 }
 
-// Try to run the post-install script, but don't crash if chalk isn't available
-try {
-  runPostInstall().catch(console.error);
-} catch (error) {
-  // Fallback without chalk colors
-  console.log('\n🤖 Thank you for installing Melius Operarius!');
-  console.log('');
-  console.log('This is an open-source AI agent that runs on local Ollama models');
-  console.log('instead of external APIs, ensuring your privacy and data control.');
-  console.log('');
-  console.log('To get started, run:');
-  console.log('');
-  console.log('  npx melius-operarius setup-wizard    # Interactive setup assistant');
-  console.log('  npx melius-operarius start           # Start the service');
-  console.log('');
-  console.log('Visit https://github.com/appointeasedev-oss/melius-operarius for documentation');
-  console.log('');
-}
+// Run the post-install script
+runPostInstall().catch(console.error);
