@@ -41,6 +41,8 @@ program
     console.log('Setting up Melius Operarius...');
     
     const controller = new MeliusController();
+    await controller.initializeComponents(); // Initialize components first
+    
     const config = controller.config;
     
     // Check if Ollama is available
@@ -54,8 +56,8 @@ program
     }
     
     // Store initial configuration
-    config.set('setupComplete', true);
-    config.set('ollamaHost', 'http://localhost:11434');
+    await config.set('setupComplete', true);
+    await config.set('ollamaHost', 'http://localhost:11434');
     console.log('✓ Configuration saved');
   });
 
@@ -66,6 +68,7 @@ program
     console.log('Listing available models...');
     
     const controller = new MeliusController();
+    await controller.initializeComponents(); // Initialize components first
     
     try {
       const models = await controller.modelManager.listModels();
@@ -90,8 +93,8 @@ program
     const readline = require('readline');
     const controller = new MeliusController();
     
-    // Initialize
-    await controller.initialize();
+    // Initialize components
+    await controller.initializeComponents();
     
     const rl = readline.createInterface({
       input: process.stdin,

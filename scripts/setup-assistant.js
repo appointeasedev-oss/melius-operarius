@@ -8,7 +8,7 @@ const { execSync, spawn } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const Configstore = require('configstore');
+const ConfigManager = require('../src/config-manager');
 
 class SetupAssistant {
   constructor() {
@@ -297,14 +297,14 @@ class SetupAssistant {
   async finalizeSetup() {
     console.log('💾 Saving configuration...\n');
     
-    // Save configuration to configstore
-    const config = new Configstore('melius-operarius');
+    // Save configuration to config manager
+    const config = new ConfigManager('melius-operarius');
     
-    config.set('setupComplete', true);
-    config.set('ollamaHost', this.config.ollamaHost);
-    config.set('defaultModel', this.config.defaultModel);
-    config.set('serverPort', this.config.serverPort);
-    config.set('pluginDirectory', this.config.pluginDirectory);
+    await config.set('setupComplete', true);
+    await config.set('ollamaHost', this.config.ollamaHost);
+    await config.set('defaultModel', this.config.defaultModel);
+    await config.set('serverPort', this.config.serverPort);
+    await config.set('pluginDirectory', this.config.pluginDirectory);
     
     // Create necessary directories
     const dirs = ['./logs', './plugins', './models', './data'];

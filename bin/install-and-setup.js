@@ -10,7 +10,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
-const Configstore = require('configstore');
+const ConfigManager = require('../src/config-manager');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -192,13 +192,13 @@ async function installLlama3Model() {
 
 async function runSetupWizard() {
   // Create a minimal setup by creating the config
-  const config = new Configstore('melius-operarius');
+  const config = new ConfigManager('melius-operarius');
   
-  config.set('setupComplete', true);
-  config.set('ollamaHost', 'http://localhost:11434');
-  config.set('defaultModel', 'llama3');
-  config.set('serverPort', 3000);
-  config.set('pluginDirectory', './plugins');
+  await config.set('setupComplete', true);
+  await config.set('ollamaHost', 'http://localhost:11434');
+  await config.set('defaultModel', 'llama3');
+  await config.set('serverPort', 3000);
+  await config.set('pluginDirectory', './plugins');
   
   // Create necessary directories
   const dirs = ['./logs', './plugins', './models', './data'];

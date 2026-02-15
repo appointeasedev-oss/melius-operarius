@@ -7,28 +7,28 @@ const ModelManager = require('./model-manager');
 const PluginManager = require('./plugin-manager');
 const ToolManager = require('./tool-manager');
 const MonitoringService = require('./monitoring');
-const Configstore = require('configstore');
+const ConfigManager = require('./config-manager');
 const express = require('express');
 const path = require('path');
 
 class MeliusController {
   constructor(options = {}) {
-    this.config = new Configstore('melius-operarius', {
-      setupComplete: false,
-      ollamaHost: 'http://localhost:11434',
-      defaultModel: 'llama3',
-      serverPort: 3000,
-      pluginDirectory: './plugins'
-    });
+    this.config = new ConfigManager('melius-operarius');
+    this.app = express();
+  }
+
+  async initializeComponents() {
+    // Load config and initialize components
+    const configValues = await this.config.getAll();
     
     this.modelManager = new ModelManager({
-      host: this.config.get('ollamaHost'),
-      defaultModel: this.config.get('defaultModel'),
+      host: configValues.ollamaHost,
+      defaultModel: configValues.defaultModel,
       modelsDir: './models'
     });
     
     this.pluginManager = new PluginManager({
-      pluginDirectory: this.config.get('pluginDirectory')
+      pluginDirectory: configValues.pluginDirectory
     });
     
     this.toolManager = new ToolManager();
@@ -39,7 +39,6 @@ class MeliusController {
       healthCheckInterval: 30000
     });
     
-    this.app = express();
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -98,7 +97,10 @@ class MeliusController {
   /**
    * Set up API routes
    */
-  setupRoutes() {
+  async setupRoutes() {
+    // Get config values
+    const configValues = await this.config.getAll();
+    
     // Health check
     this.app.get('/', (req, res) => {
       res.json({
@@ -128,7 +130,7 @@ class MeliusController {
         ];
 
         const result = await this.modelManager.generateResponse(messages, {
-          model: model || this.config.get('defaultModel'),
+          model: model || configValues.defaultModel,
           ...options
         });
 
@@ -148,7 +150,7 @@ class MeliusController {
         res.json({
           models: models,
           count: models.length,
-          default: this.config.get('defaultModel')
+          default: configValues.defaultModel
         });
       } catch (error) {
         res.status(500).json({
@@ -188,30 +190,33 @@ class MeliusController {
     });
 
     // Configuration endpoints
-    this.app.get('/config', (req, res) => {
+    this.app.get('/config', async (req, res) => {
+      const currentConfig = await this.config.getAll();
       res.json({
-        setupComplete: this.config.get('setupComplete'),
-        ollamaHost: this.config.get('ollamaHost'),
-        defaultModel: this.config.get('defaultModel'),
-        serverPort: this.config.get('serverPort')
+        setupComplete: currentConfig.setupComplete,
+        ollamaHost: currentConfig.ollamaHost,
+        defaultModel: currentConfig.defaultModel,
+        serverPort: currentConfig.serverPort
       });
     });
 
-    this.app.post('/config', (req, res) => {
+    this.app.post('/config', async (req, res) => {
       const { ollamaHost, defaultModel, serverPort } = req.body;
       
-      if (ollamaHost !== undefined) this.config.set('ollamaHost', ollamaHost);
-      if (defaultModel !== undefined) this.config.set('defaultModel', defaultModel);
-      if (serverPort !== undefined) this.config.set('serverPort', serverPort);
+      if (ollamaHost !== undefined) await this.config.set('ollamaHost', ollamaHost);
+      if (defaultModel !== undefined) await this.config.set('defaultModel', defaultModel);
+      if (serverPort !== undefined) await this.config.set('serverPort', serverPort);
       
-      this.config.set('setupComplete', true);
+      await this.config.set('setupComplete', true);
+      
+      const updatedConfig = await this.config.getAll();
       
       res.json({
         message: 'Configuration updated',
         config: {
-          ollamaHost: this.config.get('ollamaHost'),
-          defaultModel: this.config.get('defaultModel'),
-          serverPort: this.config.get('serverPort'),
+          ollamaHost: updatedConfig.ollamaHost,
+          defaultModel: updatedConfig.defaultModel,
+          serverPort: updatedConfig.serverPort,
           setupComplete: true
         }
       });
@@ -231,6 +236,7 @@ class MeliusController {
           this.getPluginInfoSafely()
         ]);
         
+        const currentConfig = await this.config.getAll();
         const healthStatus = this.monitoringService.getHealthStatus();
         
         res.json({
@@ -241,16 +247,16 @@ class MeliusController {
             uptime: process.uptime()
           },
           ollama: {
-            host: this.config.get('ollamaHost'),
+            host: currentConfig.ollamaHost,
             modelsCount: models.length,
-            defaultModel: this.config.get('defaultModel')
+            defaultModel: currentConfig.defaultModel
           },
           plugins: pluginInfo,
           health: healthStatus,
           app: {
             name: 'Melius Operarius',
             version: '0.1.0',
-            setupComplete: this.config.get('setupComplete')
+            setupComplete: currentConfig.setupComplete
           }
         });
       } catch (error) {
@@ -286,7 +292,7 @@ class MeliusController {
     });
 
     // Plugin endpoints
-    this.app.get('/plugins', (req, res) => {
+    this.app.get('/plugins', async (req, res) => {
       try {
         const pluginInfo = this.pluginManager.getPluginInfo();
         res.json({
@@ -327,7 +333,7 @@ class MeliusController {
     });
 
     // Tool endpoints
-    this.app.get('/tools', (req, res) => {
+    this.app.get('/tools', async (req, res) => {
       try {
         const tools = this.toolManager.getAvailableTools();
         res.json({
@@ -379,13 +385,17 @@ class MeliusController {
   async initialize() {
     console.log('Initializing Melius Operarius Controller...');
     
+    // Initialize components with config
+    await this.initializeComponents();
+    
     // Verify Ollama connection
     try {
       await this.modelManager.listModels();
       console.log('✓ Connected to Ollama server');
     } catch (error) {
       console.warn('⚠ Could not connect to Ollama server:', error.message);
-      console.log('Make sure Ollama is installed and running at:', this.config.get('ollamaHost'));
+      const configValues = await this.config.getAll();
+      console.log('Make sure Ollama is installed and running at:', configValues.ollamaHost);
     }
     
     // Load plugins
@@ -406,7 +416,8 @@ class MeliusController {
    * Start the HTTP server
    */
   async startServer() {
-    const port = this.config.get('serverPort');
+    const configValues = await this.config.getAll();
+    const port = configValues.serverPort;
     
     return new Promise((resolve, reject) => {
       const server = this.app.listen(port, () => {
